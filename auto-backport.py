@@ -73,7 +73,13 @@ def main():
                         repo_local = Repo(local_repo_path)
                         repo_local.git.checkout(backport_base_branch)
                         repo_local.git.checkout(b=new_branch_name)
-                        repo_local.git.cherry_pick(commit_sha)
+                        try:
+                            repo_local.git.cherry_pick(commit_sha, '-m 1')
+                        except GitCommandError as e:
+                            logging.warning(f"Cherry-pick conflict: {e}")
+                            repo_local.git.cherry_pick(commit_sha, '--strategy=recursive', '-X', 'ours')
+                            logging.info("Resolved conflicts using 'ours' strategy")
+
                         repo_local.git.push('origin', new_branch_name, force=True)
                         create_pull_request(repo, new_branch_name, backport_base_branch, backport_pr_title, pr.body, pr.number, commit_sha, pr.user.login)
                     except GitCommandError as e:
