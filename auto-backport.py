@@ -26,9 +26,9 @@ def create_pull_request(repo, new_branch_name, base_branch_name, pr_title, pr_bo
         pr.add_to_assignees(author)
         logging.info(f"Assigned PR to original author: {author}")
         logging.info(f"Pull request created: {pr.html_url}")
+        return pr
     except GithubException as e:
         logging.error(f"Failed to create PR: {e}")
-    return pr
 
 
 def get_pr_commit(pr):
@@ -78,10 +78,8 @@ def main():
                         create_pull_request(repo, new_branch_name, backport_base_branch, backport_pr_title, pr.body, pr.number, commit_sha, pr.user.login)
                     except GitCommandError as e:
                         logging.error(f"Git command failed: {e}")
-                        repo_local.git.add(A=True)
-                        repo_local.git.commit('--no-edit')
-                        repo_local.git.push('origin', new_branch_name, force=True)
-                        create_pull_request(repo, new_branch_name, backport_base_branch, backport_pr_title, pr.body, pr.number, commit_sha, pr.user.login, is_draft=True)
+                        is_draft = True
+                        create_pull_request(repo, new_branch_name, backport_base_branch, backport_pr_title, pr.body, pr.number, commit_sha, pr.user.login, is_draft=is_draft)
                     except Exception as e:
                         logging.error(f"Failed to process PR #{pr.number}: {e}")
 
