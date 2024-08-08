@@ -6,7 +6,7 @@ import shutil
 import tempfile
 import logging
 
-from github import Github, GithubException
+from github import Github, GithubException, InputGitAuthor
 from git import Repo, GitCommandError
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -50,6 +50,45 @@ def get_pr_commit(pr):
             if event.event == 'closed':
                 return event.commit_id
     return None
+
+
+def cherry_pick_commits(pr, repo, commit_sha, base_branch_name, temp_branch_name):
+    """Cherry-pick commits and push them to a temporary branch."""
+    base_branch = repo.get_branch(base_branch_name)
+    print(base_branch)
+    base_commit = base_branch.commit
+    print(base_commit)
+    print(temp_branch_name)
+    print(base_branch_name)
+    try:
+        ref = repo.create_git_ref(ref=f"refs/heads/{temp_branch_name}", sha=base_commit.sha)
+    except GithubException as e:
+        print(f"Failed to create temp branch {temp_branch_name}: {e}")
+        raise
+
+    commit = repo.get_commit(commit_sha)
+    print(commit)
+    author = InputGitAuthor(
+        name="github-actions[bot]",
+        email="41898282+github-actions[bot]@users.noreply.github.com"
+    )
+    new_tree = commit.commit.tree
+    new_commit = repo.create_git_commit(
+        message=f"Cherry-picked: {commit.commit.message}",
+        author=author,
+        tree=new_tree,
+        parents=[base_commit.commit]
+    )
+
+    # Update the temp branch to point to the new commit
+    try:
+        ref.edit(sha=new_commit.sha)
+        print(f"Successfully cherry-picked commit {commit_sha} to {temp_branch_name}")
+    except GithubException as e:
+        print(f"Failed to update temp branch {temp_branch_name}: {e}")
+        raise
+
+    return new_commit.sha, [f"- (cherry picked from commit {commit_sha})"]
 
 
 def main():
