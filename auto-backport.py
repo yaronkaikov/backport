@@ -74,13 +74,10 @@ def main():
                         repo_local.git.checkout(backport_base_branch)
                         repo_local.git.checkout(b=new_branch_name)
                         try:
-                            repo_local.git.cherry_pick(commit_sha)
+                            repo_local.git.cherry_pick(commit_sha, '-m 1')
                         except GitCommandError as e:
-                            print(1)
                             logging.warning(f"Cherry-pick conflict: {e}")
-                            print(2)
-                            repo_local.git.cherry_pick(commit_sha, '--strategy=recursive', '-m 1', '-X', 'ours')
-                            print(3)
+                            repo_local.git.cherry_pick(commit_sha, '--strategy=recursive', '-X', 'ours')
                             logging.info("Resolved conflicts using 'ours' strategy")
 
                         repo_local.git.push('origin', new_branch_name, force=True)
