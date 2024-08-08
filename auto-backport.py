@@ -11,8 +11,17 @@ from git import Repo, GitCommandError
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+github_token = os.getenv("GITHUB_TOKEN")
+repo_name = 'yaronkaikov/backport'
+promoted_to_master_label = 'promoted-to-master'
+backport_label_pattern = re.compile(r'backport/\d+\.\d+$')
 
-def create_pull_request(repo, new_branch_name, base_branch_name, pr_title, pr_body, pr_number, commit_sha, author, is_draft=False):
+g = Github(github_token)
+repo = g.get_repo(repo_name)
+closed_prs = repo.get_pulls(state='closed', base='master')
+
+
+def create_pull_request(repo, new_branch_name, base_branch_name, pr_title, pr_body, pr_number, commit_sha, author, is_draft=True):
     """Create a pull request on GitHub."""
     new_pr_body = f"{pr_body}\n\n- (cherry picked from commit {commit_sha})\n\nParent PR: #{pr_number}"
     try:
@@ -44,15 +53,6 @@ def get_pr_commit(pr):
 
 
 def main():
-    github_token = os.getenv("GITHUB_TOKEN")
-    repo_name = 'yaronkaikov/backport'
-    promoted_to_master_label = 'promoted-to-master'
-    backport_label_pattern = re.compile(r'backport/\d+\.\d+$')
-
-    g = Github(github_token)
-    repo = g.get_repo(repo_name)
-    closed_prs = repo.get_pulls(state='closed', base='master')
-
     for pr in closed_prs:
         labels = [label.name for label in pr.labels]
         backport_labels = [label for label in labels if backport_label_pattern.match(label)]
@@ -73,7 +73,7 @@ def main():
                         repo_local = Repo(local_repo_path)
                         repo_local.git.checkout(backport_base_branch)
                         repo_local.git.checkout(b=new_branch_name)
-                        repo_local.git.cherry_pick(commit_sha)
+                        repo_local.git.cherry_pick(commit_sha, '-m 1')
                         repo_local.git.push('origin', new_branch_name, force=True)
                         create_pull_request(repo, new_branch_name, backport_base_branch, backport_pr_title, pr.body, pr.number, commit_sha, pr.user.login)
                     except GitCommandError as e:
@@ -84,6 +84,7 @@ def main():
                         create_pull_request(repo, new_branch_name, backport_base_branch, backport_pr_title, pr.body, pr.number, commit_sha, pr.user.login, is_draft=True)
                     except Exception as e:
                         logging.error(f"Failed to process PR #{pr.number}: {e}")
+
 
 if __name__ == "__main__":
     main()
