@@ -6,11 +6,16 @@ import shutil
 import tempfile
 import logging
 
+<<<<<<< HEAD
 from github import Github, GithubException, InputGitAuthor
+=======
+from github import Github, GithubException
+>>>>>>> ae51704 (Merge 'test2: Update README' from Yaron Kaikov)
 from git import Repo, GitCommandError
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+<<<<<<< HEAD
 github_token = os.getenv("GITHUB_TOKEN")
 repo_name = 'yaronkaikov/backport'
 promoted_to_master_label = 'promoted-to-master'
@@ -22,6 +27,10 @@ closed_prs = repo.get_pulls(state='closed', base='master')
 
 
 def create_pull_request(repo, new_branch_name, base_branch_name, pr_title, pr_body, pr_number, commit_sha, author, is_draft=True):
+=======
+
+def create_pull_request(repo, new_branch_name, base_branch_name, pr_title, pr_body, pr_number, commit_sha, author, is_draft=False):
+>>>>>>> ae51704 (Merge 'test2: Update README' from Yaron Kaikov)
     """Create a pull request on GitHub."""
     new_pr_body = f"{pr_body}\n\n- (cherry picked from commit {commit_sha})\n\nParent PR: #{pr_number}"
     try:
@@ -35,9 +44,15 @@ def create_pull_request(repo, new_branch_name, base_branch_name, pr_title, pr_bo
         pr.add_to_assignees(author)
         logging.info(f"Assigned PR to original author: {author}")
         logging.info(f"Pull request created: {pr.html_url}")
+<<<<<<< HEAD
         return pr
     except GithubException as e:
         logging.error(f"Failed to create PR: {e}")
+=======
+    except GithubException as e:
+        logging.error(f"Failed to create PR: {e}")
+    return pr
+>>>>>>> ae51704 (Merge 'test2: Update README' from Yaron Kaikov)
 
 
 def get_pr_commit(pr):
@@ -52,6 +67,7 @@ def get_pr_commit(pr):
     return None
 
 
+<<<<<<< HEAD
 def cherry_pick_commits(pr, repo, commit_sha, base_branch_name, temp_branch_name):
     """Cherry-pick commits and push them to a temporary branch."""
     base_branch = repo.get_branch(base_branch_name)
@@ -92,6 +108,18 @@ def cherry_pick_commits(pr, repo, commit_sha, base_branch_name, temp_branch_name
 
 
 def main():
+=======
+def main():
+    github_token = os.getenv("GITHUB_TOKEN")
+    repo_name = 'yaronkaikov/backport'
+    promoted_to_master_label = 'promoted-to-master'
+    backport_label_pattern = re.compile(r'backport/\d+\.\d+$')
+
+    g = Github(github_token)
+    repo = g.get_repo(repo_name)
+    closed_prs = repo.get_pulls(state='closed', base='master')
+
+>>>>>>> ae51704 (Merge 'test2: Update README' from Yaron Kaikov)
     for pr in closed_prs:
         labels = [label.name for label in pr.labels]
         backport_labels = [label for label in labels if backport_label_pattern.match(label)]
@@ -112,6 +140,7 @@ def main():
                         repo_local = Repo(local_repo_path)
                         repo_local.git.checkout(backport_base_branch)
                         repo_local.git.checkout(b=new_branch_name)
+<<<<<<< HEAD
                         try:
                             repo_local.git.cherry_pick(commit_sha, '-m 1')
                         except GitCommandError as e:
@@ -119,15 +148,28 @@ def main():
                             repo_local.git.cherry_pick(commit_sha, '--strategy=recursive', '-X', 'ours')
                             logging.info("Resolved conflicts using 'ours' strategy")
 
+=======
+                        repo_local.git.cherry_pick(commit_sha)
+>>>>>>> ae51704 (Merge 'test2: Update README' from Yaron Kaikov)
                         repo_local.git.push('origin', new_branch_name, force=True)
                         create_pull_request(repo, new_branch_name, backport_base_branch, backport_pr_title, pr.body, pr.number, commit_sha, pr.user.login)
                     except GitCommandError as e:
                         logging.error(f"Git command failed: {e}")
+<<<<<<< HEAD
                         is_draft = True
                         create_pull_request(repo, new_branch_name, backport_base_branch, backport_pr_title, pr.body, pr.number, commit_sha, pr.user.login, is_draft=is_draft)
                     except Exception as e:
                         logging.error(f"Failed to process PR #{pr.number}: {e}")
 
 
+=======
+                        repo_local.git.add(A=True)
+                        repo_local.git.commit('--no-edit')
+                        repo_local.git.push('origin', new_branch_name, force=True)
+                        create_pull_request(repo, new_branch_name, backport_base_branch, backport_pr_title, pr.body, pr.number, commit_sha, pr.user.login, is_draft=True)
+                    except Exception as e:
+                        logging.error(f"Failed to process PR #{pr.number}: {e}")
+
+>>>>>>> ae51704 (Merge 'test2: Update README' from Yaron Kaikov)
 if __name__ == "__main__":
     main()
