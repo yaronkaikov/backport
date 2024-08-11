@@ -46,11 +46,7 @@ def get_pr_commit(pr):
 def cherry_pick_commits(pr, repo, commit_sha, base_branch_name, temp_branch_name):
     """Cherry-pick commits and push them to a temporary branch."""
     base_branch = repo.get_branch(base_branch_name)
-    print(base_branch)
     base_commit = base_branch.commit
-    print(base_commit)
-    print(temp_branch_name)
-    print(base_branch_name)
     try:
         ref = repo.create_git_ref(ref=f"refs/heads/{temp_branch_name}", sha=base_commit.sha)
     except GithubException as e:
@@ -113,14 +109,15 @@ def main():
                         repo_local.git.checkout(backport_base_branch)
                         repo_local.git.checkout(b=new_branch_name)
                         try:
-                            repo_local.git.cherry_pick(commit_sha, '-m 1')
+                            repo_local.git.cherry_pick(commit_sha, '-m 1', '-x')
                         except GitCommandError as e:
                             logging.warning(f"Cherry-pick conflict: {e}")
-                            repo_local.git.cherry_pick(commit_sha, '--strategy=recursive', '-X', 'ours')
+                            repo_local.git.add(A=True)
+                            repo_local.git.cherry_pick('--continue')
                             logging.info("Resolved conflicts using 'ours' strategy")
 
-                        repo_local.git.push('origin', new_branch_name, force=True)
-                        create_pull_request(repo, new_branch_name, backport_base_branch, backport_pr_title, pr.body, pr.number, commit_sha, pr.user.login)
+                            repo_local.git.push('origin', new_branch_name, force=True)
+                            create_pull_request(repo, new_branch_name, backport_base_branch, backport_pr_title, pr.body, pr.number, commit_sha, pr.user.login)
                     except GitCommandError as e:
                         logging.error(f"Git command failed: {e}")
                         is_draft = True
