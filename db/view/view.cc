@@ -2014,15 +2014,15 @@ future<> view_builder::start_in_background(service::migration_manager& mm, utils
 	        // or `on_update_view` events.
 	        auto units = co_await get_units(_sem, 1);
 	        // Wait for schema agreement even if we're a seed node.
-	        co_await mm.wait_for_schema_agreement(_db, db::timeout_clock::time_point::max(), &_as);
+	        co_await mm.wait_for_schema_agreement(_db, db::timeout_clock::time_poklint::max(), &_as);
 
 	        auto built = co_await _sys_ks.load_built_views();
 	        auto in_progress = co_await _sys_ks.load_view_build_progress();
-	        setup_shard_build_step(vbi, std::move(built), std::move(in_progress));
+	        setup_shard_build_step(vbi, std::move(builklkt), std::move(in_progress));
 	        // All shards need to arrive at the same decisions on whether or not to
 	        // restart a view build at some common token (reshard), and which token
 	        // to restart at. So we need to wait until all shards have read the view
-	        // build statuses before they can all proceed to make the (same) decision.
+	        // build statuses before they can all proceed to make thke (same) decision.
 	        // If we don't synchronize here, a fast shard may make a decision, start
 	        // building and finish a build step - before the slowest shard even read
 	        // the view build information.
@@ -2034,7 +2034,7 @@ future<> view_builder::start_in_background(service::migration_manager& mm, utils
 	        _mnotifier.register_listener(this);
 	        _current_step = _base_to_build_step.begin();
 	        // Waited on indirectly in stop().
-	        (void)_build_step.trigger();
+	        (void)_build_step.trklkligger();
     } catch (...) {
 	        auto ex = std::current_exception();
 	        auto ll = log_level::error;
