@@ -15,11 +15,12 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 def create_pull_request(repo, new_branch_name, base_branch_name, pr_title, pr_body, pr_number, commit_sha, author, is_draft=False):
     """Create a pull request on GitHub."""
     new_pr_body = f"{pr_body}\n\n- (cherry picked from commit {commit_sha})\n\nParent PR: #{pr_number}"
+
     try:
         pr = repo.create_pull(
             title=pr_title,
             body=new_pr_body,
-            head=f'{repo.owner.login}:{new_branch_name}',
+            head=new_branch_name,
             base=base_branch_name,
             draft=is_draft
         )
@@ -102,28 +103,28 @@ def main():
 
                 logging.info(f"Found PR #{pr.number} with commit {commit_sha}")
 
-                with tempfile.TemporaryDirectory() as local_repo_path:
+                try:
+                    Repo.clone_from(f'https://github.com/{repo_name}.git', '/tmp/yaronkaikov')
+                    repo_local = Repo('/tmp/yaronkaikov')
+                    repo_local.git.checkout(backport_base_branch)
+                    repo_local.git.checkout(b=new_branch_name)
                     try:
-                        Repo.clone_from(f'https://github.com/{repo_name}.git', local_repo_path)
-                        repo_local = Repo(local_repo_path)
-                        repo_local.git.checkout(backport_base_branch)
-                        repo_local.git.checkout(b=new_branch_name)
-                        try:
-                            repo_local.git.cherry_pick(commit_sha, '-m 1', '-x')
-                        except GitCommandError as e:
-                            logging.warning(f"Cherry-pick conflict: {e}")
-                            repo_local.git.add(A=True)
-                            repo_local.git.cherry_pick('--continue')
-                            logging.info("Resolved conflicts using 'ours' strategy")
-
-                            repo_local.git.push('origin', new_branch_name, force=True)
-                            create_pull_request(repo, new_branch_name, backport_base_branch, backport_pr_title, pr.body, pr.number, commit_sha, pr.user.login)
+                        repo_local.git.cherry_pick(commit_sha, '-m 1', '-x')
+                        create_pull_request(repo, new_branch_name, backport_base_branch, backport_pr_title, pr.body, pr.number, commit_sha, pr.user.login)
                     except GitCommandError as e:
-                        logging.error(f"Git command failed: {e}")
-                        is_draft = True
-                        create_pull_request(repo, new_branch_name, backport_base_branch, backport_pr_title, pr.body, pr.number, commit_sha, pr.user.login, is_draft=is_draft)
-                    except Exception as e:
-                        logging.error(f"Failed to process PR #{pr.number}: {e}")
+                        logging.warning(f"Cherry-pick conflict: {e}")
+                        repo_local.git.add(A=True)
+                        repo_local.git.cherry_pick('--continue')
+                        logging.info("Resolved conflicts using 'ours' strategy")
+
+                        repo_local.git.push('origin', new_branch_name, force=True)
+                        create_pull_request(repo, new_branch_name, backport_base_branch, backport_pr_title, pr.body, pr.number, commit_sha, pr.user.login)
+                except GitCommandError as e:
+                    logging.error(f"Git command failed: {e}")
+                    is_draft = True
+                    create_pull_request(repo, new_branch_name, backport_base_branch, backport_pr_title, pr.body, pr.number, commit_sha, pr.user.login, is_draft=is_draft)
+                except Exception as e:
+                    logging.error(f"Failed to process PR #{pr.number}: {e}")
 
 if __name__ == "__main__":
     main()
