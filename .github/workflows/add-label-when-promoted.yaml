@@ -7,7 +7,7 @@ on:
       - branch-*.*
 
 env:
-  DEFAULT_BRANCH: 'master'
+  DEFAULT_BRANCH: "master"
 
 jobs:
   check-commit:
@@ -25,12 +25,12 @@ jobs:
         with:
           repository: ${{ github.repository }}
           ref: ${{ env.DEFAULT_BRANCH }}
-          fetch-depth: 0  # Fetch all history for all tags and branches
+          fetch-depth: 0 # Fetch all history for all tags and branches
 
       - name: Install dependencies
         run: sudo apt-get install -y python3-github
 
       - name: Run python script
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
         run: python .github/scripts/label_promoted_commits.py --commit_before_merge ${{ github.event.before }} --commit_after_merge ${{ github.event.after }} --repository ${{ github.repository }} --ref ${{ github.ref }}
