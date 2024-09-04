@@ -24,7 +24,10 @@ jobs:
           fetch-depth: 0 # Fetch all history for all tags and branches
 
       - name: Install dependencies
-        run: sudo apt-get install -y python3-github
+        run: |
+          sudo apt-get install -y python3-github
+          python -m pip install --upgrade pip
+          pip install gitpython requests
 
       - name: Run python script
         env:
