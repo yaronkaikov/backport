@@ -29,6 +29,8 @@ def create_pull_request(repo, new_branch_name, base_branch_name, pr_title, pr_bo
         return pr
     except GithubException as e:
         logging.error(f"Failed to create PR: {e}")
+        if e.data:
+            logging.error(f"Error Data: {e.data}")
 
 
 def get_pr_commit(pr):
