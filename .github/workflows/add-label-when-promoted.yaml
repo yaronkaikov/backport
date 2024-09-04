@@ -32,5 +32,5 @@ jobs:
 
       - name: Run python script
         env:
-          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python .github/scripts/label_promoted_commits.py --commit_before_merge ${{ github.event.before }} --commit_after_merge ${{ github.event.after }} --repository ${{ github.repository }} --ref ${{ github.ref }}
