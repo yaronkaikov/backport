@@ -119,6 +119,10 @@ def main():
 
                         repo_local.git.push('origin', new_branch_name, force=True)
                         create_pull_request(repo, new_branch_name, backport_base_branch, backport_pr_title, pr.body, pr.number, commit_sha, pr.user.login)
+                    
+                    repo_local.git.push('origin', new_branch_name, force=True)
+                    create_pull_request(repo, new_branch_name, backport_base_branch, backport_pr_title, pr.body, pr.number, commit_sha, pr.user.login)
+                    
                 except GitCommandError as e:
                     logging.error(f"Git command failed: {e}")
                     is_draft = True
