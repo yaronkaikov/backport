@@ -80,6 +80,7 @@ def cherry_pick_commits(pr, repo, commit_sha, base_branch_name, temp_branch_name
 
 def main():
     github_token = os.getenv("GITHUB_TOKEN")
+    # logging.info(f"Token: {github_token}")
     repo_name = 'yaronkaikov/backport'
     promoted_to_master_label = 'promoted-to-master'
     backport_label_pattern = re.compile(r'backport/\d+\.\d+$')
@@ -91,6 +92,7 @@ def main():
     for pr in closed_prs:
         labels = [label.name for label in pr.labels]
         backport_labels = [label for label in labels if backport_label_pattern.match(label)]
+        # logging.info(f"Labels: {backport_labels}")
 
         if promoted_to_master_label in labels and backport_labels:
             for backport_label in backport_labels:
@@ -117,10 +119,16 @@ def main():
                             logging.info("Resolved conflicts using 'ours' strategy")
 
                             repo_local.git.push('origin', new_branch_name, force=True)
+                            logging.info("First Call")
                             create_pull_request(repo, new_branch_name, backport_base_branch, backport_pr_title, pr.body, pr.number, commit_sha, pr.user.login)
+
+                        repo_local.git.push('origin', new_branch_name, force=True)
+                        create_pull_request(repo, new_branch_name, backport_base_branch, backport_pr_title, pr.body, pr.number, commit_sha, pr.user.login)
+                    
                     except GitCommandError as e:
                         logging.error(f"Git command failed: {e}")
                         is_draft = True
+                        logging.info("Second call")
                         create_pull_request(repo, new_branch_name, backport_base_branch, backport_pr_title, pr.body, pr.number, commit_sha, pr.user.login, is_draft=is_draft)
                     except Exception as e:
                         logging.error(f"Failed to process PR #{pr.number}: {e}")
