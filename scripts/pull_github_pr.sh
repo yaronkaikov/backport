@@ -36,66 +36,23 @@ curl() {
     command curl "${opts[@]}" "$@"
 }
 
-NL=$'\n'
-
 PR_NUM=$1
-# convert full repo URL to its project/repo part, in case of failure default to origin/master:
-REMOTE_SLASH_BRANCH="$(git rev-parse --abbrev-ref --symbolic-full-name  @{upstream} \
-     || git rev-parse --abbrev-ref --symbolic-full-name master@{upstream} \
-     || echo 'origin/master')"
-REMOTE="${REMOTE_SLASH_BRANCH%/*}"
-REMOTE_URL="$(git config --get "remote.$REMOTE.url")"
-PROJECT=`sed 's/git@github.com://;s#https://github.com/##;s/\.git$//;' <<<"${REMOTE_URL}"`
-PR_PREFIX=https://api.github.com/repos/$PROJECT/pulls
+pr_json="pr_${PR_NUM}.json"
 
 echo "Fetching info on PR #$PR_NUM... "
-PR_DATA=$(curl -s $PR_PREFIX/$PR_NUM)
-MESSAGE=$(jq -r .message <<< $PR_DATA)
-if [ "$MESSAGE" != null ]
-then
-    # Error message, probably "Not Found".
-    echo "$MESSAGE"
-    exit 1
-fi
-PR_TITLE=$(jq -r .title <<< $PR_DATA)
-echo "    $PR_TITLE"
-PR_DESCR=$(jq -r .body <<< $PR_DATA)
-PR_LOGIN=$(jq -r .head.user.login <<< $PR_DATA)
-echo -n "Fetching full name of author $PR_LOGIN... "
-USER_NAME=$(curl -s "https://api.github.com/users/$PR_LOGIN" | jq -r .name)
-echo "$USER_NAME"
 
-git fetch "$REMOTE" pull/$PR_NUM/head
+gh pr view "$PR_NUM" --json title,body,author,commits,headRefName > "${pr_json}"
 
-nr_commits=$(git log --pretty=oneline HEAD..FETCH_HEAD | wc -l)
-
-closes="${NL}${NL}Closes ${PROJECT}#${PR_NUM}${NL}"
+title=$(jq -r '.title' < "${pr_json}")
+body=$(jq -r '.body' < "${pr_json}")
+author=$(jq -r '[.author.name] | join(",")' < "${pr_json}")
+nr_commits=$(jq -r '.commits | length' < "${pr_json}")
+headRefName=$(jq -r '.headRefName' < "${pr_json}")
 
 if [[ $nr_commits == 1 ]]; then
-	commit=$(git log --pretty=oneline HEAD..FETCH_HEAD | awk '{print $1}')
-	message="$(git log -1 "$commit" --format="format:%s%n%n%b")"
-	if ! git cherry-pick $commit
-	then
-		echo "Cherry-pick failed. You are now in a subshell. Either resolve with git cherry-pick --continue or git cherry-pick --abort, then exit the subshell"
-		head_before=$(git rev-parse HEAD)
-		bash
-		head_after=$(git rev-parse HEAD)
-		if [[ "$head_before" = "$head_after" ]]; then
-			exit 1
-		fi
-	fi
-	git commit --amend -m "${message}${closes}"
+  gh pr "$PR_NUM" merge -r
 else
-	git merge --no-ff --log=1000 FETCH_HEAD -m "Merge '$PR_TITLE' from $USER_NAME" -m "${PR_DESCR}${closes}"
+  gh pr "$PR_NUM" merge -m -t "Merge $title from $author $body"
 fi
-git commit --amend # for a manual double-check
 
-# Check PR tests status
-PR_HEAD_SHA=$(jq -r .head.sha <<< $PR_DATA)
-PR_TESTS_STATUS=$(curl -s "https://api.github.com/repos/$PROJECT/commits/$PR_HEAD_SHA/status" | jq -r .state)
-if [ "$PR_TESTS_STATUS" != "success" ]; then
-  ORANGE='\033[0;33m'
-  NC='\033[0m'
-  echo -e "${ORANGE}\nWARNING:${NC} Some of the tests that ran for this PR were not completed successfully,\n" \
-        "please make sure all tests are done successfully before merge this PR.\n"
-fi
+rm -rf "${pr_json}"
