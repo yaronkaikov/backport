@@ -1,0 +1,36 @@
+name: Check if commits are promoted
+
+on:
+  push:
+    branches:
+      - master
+      - next-*.*
+
+env:
+  DEFAULT_BRANCH: ${{ github.repository == 'scylladb/scylla-enterprise' && 'enterprise' || 'master' }}
+
+jobs:
+  check-commit:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: echo "$GITHUB_CONTEXT"
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ env.DEFAULT_BRANCH }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0  # Fetch all history for all tags and branches
+      - name: Install dependencies
+        run: sudo apt-get install -y python3-github
+      - name: Run python script
+        if: github.event_name == 'push'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python .github/scripts/search_commits.py  --commits ${{ github.event.before }}..${{ github.sha }} --repository ${{ github.repository }} --ref ${{ github.ref }}
