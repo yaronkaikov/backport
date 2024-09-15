@@ -1,0 +1,26 @@
+name: Pass Argument Between Python Scripts
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  pass-argument:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1 - Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Step 2 - Run script1.py and write output to the environment file
+      - name: Step 1 - Run script1.py
+        id: step1
+        run: |
+          python .github/workflows/script1.py
+
+      # Step 3 - Run script2.py using the output from script1.py
+      - name: Step 2 - Run script2.py with the value from Step 1
+        run: |
+          python .github/workflows/script2.py ${{ steps.step1.outputs.my_value }}
