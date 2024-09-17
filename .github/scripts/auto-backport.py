@@ -18,7 +18,7 @@ def parse_args():
     group = parser.add_mutually_exclusive_group(required=True)
     parser.add_argument('--repo', type=str, required=True, help='Github repository name')
     parser.add_argument('--base-branch', type=str, default='refs/heads/next', help='Base branch')
-    group.add_argument('--commits', type=Array, help='Range of promoted commits.')
+    group.add_argument('--commits', type=str, help='Range of promoted commits.')
     group.add_argument('--pull-request', type=int, help='Pull request number to be backported')
     return parser.parse_args()
 

@@ -41,7 +41,7 @@ jobs:
         if: github.event_name == 'push'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python .github/scripts/auto-backport.py --repo ${{ github.repository }} --base-branch ${{ github.ref }} --commits ${{ toJSON(github.event.commits) }}' | jq -r '.[].id
+        run: python .github/scripts/auto-backport.py --repo ${{ github.repository }} --base-branch ${{ github.ref }} --commits ${{ toJSON(github.event.commits) }}' | jq -r 'map(.id) | join(",")'
       - name: Run auto-backport.py when label was added
         if: github.event_name == 'pull_request_target' && startsWith(github.event.label.name, 'backport/') && (github.event.pull_request.state == 'closed' && github.event.pull_request.merged == true)
         env:
