@@ -37,6 +37,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python .github/scripts/search_commits.py  --commits ${{ github.event.before }}..${{ github.sha }} --repository ${{ github.repository }} --ref ${{ github.ref }}
+      - name: print
+        run: |
+          COMMITS=$(echo '${{ toJSON(github.event.commits) }}' | jq -r '.[].id')
+          echo "Commit SHAs: $COMMITS"
       - name: Run auto-backport.py whe promotion completed
         if: github.event_name == 'push'
         env:
