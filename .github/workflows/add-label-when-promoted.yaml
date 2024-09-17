@@ -48,10 +48,10 @@ jobs:
           label_name="${{ github.event.label.name }}"
           if [[ "$label_name" =~ ^backport/[0-9]+\.[0-9]+$ ]]; then
             echo "Label matches backport/X.X pattern."
-            echo "::set-output name=backport_label::true"
+            echo "backport_label=true" >> $GITHUB_OUTPUT
           else
             echo "Label does not match the required pattern."
-            echo "::set-output name=backport_label::false"
+            echo "backport_label=false" >> $GITHUB_OUTPUT
           fi
       - name: Run auto-backport.py when label was added
         if: github.event_name == 'pull_request_target' && steps.check_label.outputs.backport_label == 'true' && (github.event.pull_request.state == 'closed' && github.event.pull_request.merged == true)

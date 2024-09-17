@@ -72,6 +72,8 @@ def get_pr_commits(repo, pr, stable_branch, start_commit=None):
                     # So here, we are validating the correct SHA for each commit so we can cherry-pick
                     if promoted_commit.commit.message.startswith(commit_title):
                         commits.append(promoted_commit.sha)
+                else:
+                    commits.append(start_commit)
 
     elif pr.state == 'closed':
         events = pr.get_issue_events()
@@ -110,7 +112,7 @@ def backport(repo, pr, version, commits, backport_base_branch):
 
 def get_prs_from_commits(repo, commits):
     for sha1 in commits:
-        commit = repo.get_commit(sha1)
+        commit = repo.get_commit(sha1.commit.sha)
         for parent in commit.parents:
             prs = repo.get_pulls(state="closed", head=parent.sha)
             if prs:
