@@ -5,7 +5,6 @@ import os
 import re
 import tempfile
 import logging
-from multiprocessing.managers import Array
 
 from github import Github, GithubException
 from git import Repo, GitCommandError
@@ -15,11 +14,10 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    group = parser.add_mutually_exclusive_group(required=True)
     parser.add_argument('--repo', type=str, required=True, help='Github repository name')
     parser.add_argument('--base-branch', type=str, default='refs/heads/next', help='Base branch')
-    group.add_argument('--commits', type=str, help='Range of promoted commits.')
-    group.add_argument('--pull-request', type=int, help='Pull request number to be backported')
+    parser.add_argument('--commits', default=None, type=str, help='Range of promoted commits.')
+    parser.add_argument('--pull-request', type=int, help='Pull request number to be backported')
     return parser.parse_args()
 
 
@@ -49,14 +47,17 @@ def create_pull_request(repo, new_branch_name, base_branch_name, pr, backport_pr
             logging.error(f'Failed to create PR: {e}')
 
 
-def get_pr_commits(repo, pr, stable_branch):
+def get_pr_commits(repo, pr, stable_branch, start_commit=None):
     commits = []
     if pr.merged:
         merge_commit = repo.get_commit(pr.merge_commit_sha)
         if len(merge_commit.parents) > 1:  # Check if this merge commit include multiple commits
             commits.append(pr.merge_commit_sha)
         else:
-            promoted_commits = repo.get_commits(sha=stable_branch)
+            if start_commit:
+                promoted_commits = repo.compare(start_commit, stable_branch).commits
+            else:
+                promoted_commits = repo.get_commits(sha=stable_branch)
             for commit in pr.get_commits():
                 for promoted_commit in promoted_commits:
                     commit_title = commit.commit.message.splitlines()[0]
@@ -74,7 +75,7 @@ def get_pr_commits(repo, pr, stable_branch):
     return commits
 
 
-def backport(repo, pr, version, commits, backport_base_branch, ):
+def backport(repo, pr, version, commits, backport_base_branch):
     with (tempfile.TemporaryDirectory() as local_repo_path):
         try:
             new_branch_name = f'backport/{pr.number}/to-{version}'
@@ -116,11 +117,14 @@ def main():
     base_branch = args.base_branch.split('/')[2]
     promoted_label = 'promoted-to-master'
     repo_name = args.repo
+    pattern = rf"(?:fix(?:|es|ed)|resolve(?:|d|s))\s*:?\s*(?:(?:(?:{repo_name})?#)|https://github\.com/{repo_name}/issues/)(\d+)"
     if args.repo in ('scylladb/scylla', 'scylladb/scylla-enterprise'):
         stable_branch = base_branch
+        backport_branch = 'branch-'
         if args.repo == 'scylladb/scylla-enterprise':
             promoted_label = 'promoted-to-enterprise'
     else:
+        backport_branch = f'{base_branch}-'
         if base_branch == 'next':
             stable_branch = 'master'
         else:
@@ -132,41 +136,37 @@ def main():
     g = Github(github_token)
     repo = g.get_repo(repo_name)
     closed_prs = []
-    last_commit_title = None
     start_commit = None
+
     if args.commits:
-        prs = get_prs_from_commits(repo, args.commits.split(','))
+        start_commit, end_commit = args.commits.split('..')
+        commits = repo.compare(start_commit, end_commit).commits
+        prs = get_prs_from_commits(repo, commits)
         closed_prs = list(prs)
-    elif args.pull_request:
+    if args.pull_request:
+        start_commit = args.commits
         pr = repo.get_pull(args.pull_request)
         closed_prs = [pr]
-    # if args.commits:
-    #     start_commit, end_commit = args.commits.split('..')
-    #     last_commit_title = repo.get_commit(sha=start_commit).commit.message.splitlines()[0]
-    #     closed_prs = repo.get_pulls(state='closed', base=base_branch)
-    # if args.pull_request:
-    #     pr = repo.get_pull(args.pull_request)
-    #     closed_prs = [pr]
 
     for pr in closed_prs:
-        # for pr_commits in pr.get_commits():
-        #     if args.pull_request:
-        #         start_commit = pr_commits.commit.sha
-        #     if args.commits:
-        #         if pr_commits.commit.message.splitlines()[0] == last_commit_title:
-        #             return
         labels = [label.name for label in pr.labels]
         backport_labels = [label for label in labels if backport_label_pattern.match(label)]
+        match = re.findall(pattern, pr.body, re.IGNORECASE)
+        if not match:
+            comment = (f'@{pr.user.login}, PR description is missing a valid reference to an issue (see https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue)\n,'
+                       f'please update PR description and trigger the automation process by adding another comment as explained below:\n'
+                       f'')
+            pr.create_issue_comment(comment)
         if promoted_label not in labels:
             continue
         if not backport_labels:
             continue
-        commits = get_pr_commits(repo, pr, stable_branch)
+        commits = get_pr_commits(repo, pr, stable_branch, start_commit)
         logging.info(f"Found PR #{pr.number} with commit {commits} and the following labels: {backport_labels}")
-        for backport_label in backport_labels:
-            version = backport_label.replace('backport/', '')
-            backport_base_branch = backport_label.replace('backport/', f'{base_branch}-{version}')
-            backport(repo, pr, version, commits, backport_base_branch)
+        # for backport_label in backport_labels:
+        #     version = backport_label.replace('backport/', '')
+        #     backport_base_branch = backport_label.replace('backport/', backport_branch)
+        #     backport(repo, pr, version, commits, backport_base_branch)
 
 
 if __name__ == "__main__":
