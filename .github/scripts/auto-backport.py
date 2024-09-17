@@ -3,6 +3,7 @@
 import argparse
 import os
 import re
+import sys
 import tempfile
 import logging
 
@@ -12,12 +13,17 @@ from git import Repo, GitCommandError
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
+def is_pull_request():
+    return True if '--pull-request' in sys.argv else False
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--repo', type=str, required=True, help='Github repository name')
     parser.add_argument('--base-branch', type=str, default='refs/heads/next', help='Base branch')
     parser.add_argument('--commits', default=None, type=str, help='Range of promoted commits.')
     parser.add_argument('--pull-request', type=int, help='Pull request number to be backported')
+    parser.add_argument('--commit', type=str, required=is_pull_request(), help='PR commit, required when `--pull-request` was given')
     return parser.parse_args()
 
 
@@ -117,7 +123,6 @@ def main():
     base_branch = args.base_branch.split('/')[2]
     promoted_label = 'promoted-to-master'
     repo_name = args.repo
-    pattern = rf"(?:fix(?:|es|ed)|resolve(?:|d|s))\s*:?\s*(?:(?:(?:{repo_name})?#)|https://github\.com/{repo_name}/issues/)(\d+)"
     if args.repo in ('scylladb/scylla', 'scylladb/scylla-enterprise'):
         stable_branch = base_branch
         backport_branch = 'branch-'
@@ -144,29 +149,23 @@ def main():
         prs = get_prs_from_commits(repo, commits)
         closed_prs = list(prs)
     if args.pull_request:
-        start_commit = args.commits
+        start_commit = args.commit
         pr = repo.get_pull(args.pull_request)
         closed_prs = [pr]
 
     for pr in closed_prs:
         labels = [label.name for label in pr.labels]
         backport_labels = [label for label in labels if backport_label_pattern.match(label)]
-        match = re.findall(pattern, pr.body, re.IGNORECASE)
-        if not match:
-            comment = (f'@{pr.user.login}, PR description is missing a valid reference to an issue (see https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue)\n,'
-                       f'please update PR description and trigger the automation process by adding another comment as explained below:\n'
-                       f'')
-            pr.create_issue_comment(comment)
         if promoted_label not in labels:
             continue
         if not backport_labels:
             continue
         commits = get_pr_commits(repo, pr, stable_branch, start_commit)
         logging.info(f"Found PR #{pr.number} with commit {commits} and the following labels: {backport_labels}")
-        # for backport_label in backport_labels:
-        #     version = backport_label.replace('backport/', '')
-        #     backport_base_branch = backport_label.replace('backport/', backport_branch)
-        #     backport(repo, pr, version, commits, backport_base_branch)
+        for backport_label in backport_labels:
+            version = backport_label.replace('backport/', '')
+            backport_base_branch = backport_label.replace('backport/', backport_branch)
+            backport(repo, pr, version, commits, backport_base_branch)
 
 
 if __name__ == "__main__":
