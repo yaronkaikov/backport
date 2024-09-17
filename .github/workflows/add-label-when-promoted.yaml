@@ -37,15 +37,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python .github/scripts/search_commits.py  --commits ${{ github.event.before }}..${{ github.sha }} --repository ${{ github.repository }} --ref ${{ github.ref }}
-      - name: print
-        run: |
-          COMMITS=$(echo '${{ toJSON(github.event.commits) }}' | jq -r '.[].id')
-          echo "Commit SHAs: $COMMITS"
       - name: Run auto-backport.py whe promotion completed
         if: github.event_name == 'push'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python .github/scripts/auto-backport.py --repo ${{ github.repository }} --base-branch ${{ github.ref }} --commits ${{ github.event.commits }}.map(commit => commit.sha).join(",")
+        run: python .github/scripts/auto-backport.py --repo ${{ github.repository }} --base-branch ${{ github.ref }} --commits ${{ toJSON(github.event.commits) }}' | jq -r '.[].id
       - name: Run auto-backport.py when label was added
         if: github.event_name == 'pull_request_target' && startsWith(github.event.label.name, 'backport/') && (github.event.pull_request.state == 'closed' && github.event.pull_request.merged == true)
         env:
