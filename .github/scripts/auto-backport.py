@@ -89,15 +89,15 @@ def get_pr_commits(repo, pr, stable_branch, start_commit=None):
     return commits
 
 
-def backport(repo, pr, version, commits, backport_base_branch):
+def backport(repo, pr, version, commits, backport_base_branch, user):
     with (tempfile.TemporaryDirectory() as local_repo_path):
         try:
             new_branch_name = f'backport/{pr.number}/to-{version}'
             backport_pr_title = f'[Backport {version}] {pr.title}'
             repo_local = Repo.clone_from(f'https://oauth2:{github_token}@github.com/{repo.full_name}.git', local_repo_path, branch=backport_base_branch)
-            repo_local.git.config("user.name", "github-actions[bot]")
-            repo_local.git.config("user.email", "41898282+github-actions[bot]@users.noreply.github.com")
             repo_local.git.checkout(b=new_branch_name)
+            repo.git.config("user.name", user.login)
+            repo.git.config("user.email", user.email)
             fork_repo = pr.user.get_repo(repo.full_name.split('/')[1])
             repo_local.create_remote('fork', fork_repo.clone_url)
             remote = 'origin'
@@ -140,6 +140,7 @@ def main():
     backport_label_pattern = re.compile(r'backport/\d+\.\d+$')
 
     g = Github(github_token)
+    user = g.get_user()
     repo = g.get_repo(repo_name)
     closed_prs = []
     start_commit = None
@@ -169,7 +170,7 @@ def main():
         for backport_label in backport_labels:
             version = backport_label.replace('backport/', '')
             backport_base_branch = backport_label.replace('backport/', backport_branch)
-            backport(repo, pr, version, commits, backport_base_branch)
+            backport(repo, pr, version, commits, backport_base_branch, user)
 
 
 if __name__ == "__main__":
