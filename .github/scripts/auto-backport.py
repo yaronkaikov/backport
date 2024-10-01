@@ -6,6 +6,7 @@ import re
 import sys
 import tempfile
 import logging
+import git
 
 from github import Github, GithubException
 from git import Repo, GitCommandError
@@ -94,6 +95,8 @@ def backport(repo, pr, version, commits, backport_base_branch):
             new_branch_name = f'backport/{pr.number}/to-{version}'
             backport_pr_title = f'[Backport {version}] {pr.title}'
             repo_local = Repo.clone_from(f'https://{github_token}:x-oauth-basic@github.com/{repo.full_name}.git', local_repo_path, branch=backport_base_branch)
+            repo_local.git.config("user.name", "github-actions[bot]")
+            repo_local.git.config("user.email", "41898282+github-actions[bot]@users.noreply.github.com")
             repo_local.git.checkout(b=new_branch_name)
             fork_repo = pr.user.get_repo(repo.full_name.split('/')[1])
             repo_local.create_remote('fork', fork_repo.clone_url)
