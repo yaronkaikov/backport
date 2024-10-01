@@ -5,12 +5,10 @@ on:
     branches:
       - master
       - next-*.*
+      - enterprise
   pull_request_target:
     types: [labeled]
-    branches: [master, next]
-
-env:
-  DEFAULT_BRANCH: ${{ github.repository == 'scylladb/scylla-enterprise' && 'enterprise' || 'master' }}
+    branches: [master, next, enterprise]
 
 jobs:
   check-commit:
@@ -23,6 +21,14 @@ jobs:
         env:
           GITHUB_CONTEXT: ${{ toJson(github) }}
         run: echo "$GITHUB_CONTEXT"
+      - name: Set Default Branch
+        id: set_branch
+        run: |
+          if [[ "${{ github.repository }}" == *enterprise* ]]; then
+            echo "DEFAULT_BRANCH=enterprise" >> $GITHUB_ENV
+          else
+            echo "DEFAULT_BRANCH=master" >> $GITHUB_ENV
+          fi
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -37,7 +43,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python .github/scripts/search_commits.py  --commits ${{ github.event.before }}..${{ github.sha }} --repository ${{ github.repository }} --ref ${{ github.ref }}
-      - name: Run auto-backport.py whe promotion completed
+      - name: Run auto-backport.py when promotion completed
         if: github.event_name == 'push'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -57,4 +63,4 @@ jobs:
         if: github.event_name == 'pull_request_target' && steps.check_label.outputs.backport_label == 'true' && (github.event.pull_request.state == 'closed' && github.event.pull_request.merged == true)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python .github/scripts/auto-backport.py --repo ${{ github.repository }} --base-branch ${{ github.ref }} --pull-request ${{ github.event.pull_request.number }} --commit ${{ github.sha }}
+        run: python .github/scripts/auto-backport.py --repo ${{ github.repository }} --base-branch ${{ github.ref }} --pull-request ${{ github.event.pull_request.number }} --head-commit ${{ github.sha }}

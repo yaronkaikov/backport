@@ -26,7 +26,7 @@ def parser():
 def main():
     args = parser()
     g = Github(github_token)
-    repo = g.get_repo(args.repository)
+    repo = g.get_repo(args.repository, lazy=False)
     start_commit, end_commit = args.commits.split('..')
     commits = repo.compare(start_commit, end_commit).commits
     processed_prs = set()
