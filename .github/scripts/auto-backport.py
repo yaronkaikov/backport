@@ -96,7 +96,8 @@ def backport(repo, pr, version, commits, backport_base_branch, user):
             repo_local = Repo.clone_from(f'https://{user.login}:{github_token}@github.com/{repo.full_name}.git', local_repo_path, branch=backport_base_branch)
             repo_local.git.checkout(b=new_branch_name)
             fork_repo = pr.user.get_repo(repo.full_name.split('/')[1])
-            repo_local.create_remote('fork', fork_repo.clone_url)
+            fork_repo_url = f'https://{user.login}:{github_token}@github.com/{fork_repo.full_name}.git'
+            repo_local.create_remote('fork', fork_repo_url)
             remote = 'origin'
             is_draft = False
             for commit in commits:
