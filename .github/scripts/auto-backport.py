@@ -99,7 +99,8 @@ def backport(repo, pr, version, commits, backport_base_branch, user):
             repo_local.git.config("user.name", "github-actions[bot]")
             repo_local.git.config("user.email", "41898282+github-actions[bot]@users.noreply.github.com")
             fork_repo = pr.user.get_repo(repo.full_name.split('/')[1])
-            repo_local.create_remote('fork', fork_repo.clone_url)
+            fork_repo_url = f'https://{user.login}:{github_token}@github.com/{fork_repo.full_name}.git'
+            repo_local.create_remote('fork', fork_repo_url)
             remote = 'origin'
             is_draft = False
             for commit in commits:

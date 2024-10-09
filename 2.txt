@@ -1,7 +1,30 @@
+<<<<<<< HEAD
 dkjsdkasd
 skdjasl
 askjdks
 jfksd
+||||||| parent of c0301e1 (wip)
+ds
+
+asd
+
+as
+da
+sd
+ajfksd
+=======
+ds
+
+asd
+ksjdlas
+kasjdlksa
+sakjdsla
+
+as
+da
+sd
+ajfksd
+>>>>>>> c0301e1 (wip)
 kdjflsd
 dklsjsfd
 ksjdfls
