@@ -25,7 +25,7 @@ def is_pull_request():
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--repo', type=str, required=True, help='Github repository name')
-    parser.add_argument('--base-branch', type=str, default='refs/heads/next', help='Base branch')
+    parser.add_argument('--base-branch', type=str, default='refs/heads/master', help='Base branch')
     parser.add_argument('--commits', default=None, type=str, help='Range of promoted commits.')
     parser.add_argument('--pull-request', type=int, help='Pull request number to be backported')
     parser.add_argument('--head-commit', type=str, required=is_pull_request(), help='The HEAD of target branch after the pull request specified by --pull-request is merged')
@@ -116,6 +116,22 @@ def backport(repo, pr, version, commits, backport_base_branch, user):
             logging.warning(f"GitCommandError: {e}")
 
 
+def create_pr_comment_and_remove_label(pr):
+    comment_body = f':warning:  @{pr.user.login} PR body does not contain a valid reference to an issue '
+    comment_body += ' based on [linking-a-pull-request-to-an-issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword)'
+    comment_body += ' and can not be backported\n\n'
+    comment_body += 'The following labels were removed:\n'
+    labels = pr.get_labels()
+    pattern = re.compile(r"backport/\d+\.\d+$")
+    for label in labels:
+        if pattern.match(label.name):
+            print(f"Removing label: {label.name}")
+            comment_body += f'- {label.name}\n'
+            pr.remove_from_labels(label)
+    comment_body += f'\nPlease add the relevant backport labels after PR body is fixed'
+    pr.create_issue_comment(comment_body)
+
+
 def main():
     args = parse_args()
     base_branch = args.base_branch.split('/')[2]
@@ -123,17 +139,8 @@ def main():
     repo_name = args.repo
     if 'scylla-enterprise' in args.repo:
         promoted_label = 'promoted-to-enterprise'
-    if args.repo in ('scylladb/scylla', 'scylladb/scylla-enterprise'):
-        stable_branch = base_branch
-        backport_branch = 'branch-'
-    else:
-        backport_branch = 'next-'
-        if base_branch in ('master', 'next'):
-            stable_branch = 'master'
-        elif base_branch in ('enterprise', 'next-enterprise'):
-            stable_branch = 'enterprise'
-        else:
-            stable_branch = base_branch.replace('next', 'branch')
+    stable_branch = base_branch
+    backport_branch = 'branch-'
 
     backport_label_pattern = re.compile(r'backport/\d+\.\d+$')
 

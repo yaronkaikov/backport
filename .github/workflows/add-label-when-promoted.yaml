@@ -4,11 +4,11 @@ on:
   push:
     branches:
       - master
-      - next-*.*
+      - branch-*.*
       - enterprise
-  pull_request_target:
-    types: [labeled]
-    branches: [master, next, enterprise]
+    pull_request_target:
+      types: [labeled]
+      branches: [master, next, enterprise]
 
 jobs:
   check-commit:
@@ -47,9 +47,9 @@ jobs:
         if: github.event_name == 'push'
         env:
           GITHUB_TOKEN: ${{ secrets.AUTO_BACKPORT_TOKEN }}
-        run: python .github/scripts/search_commits.py  --commits ${{ github.event.before }}..${{ github.sha }} --repository ${{ github.repository }} --ref ${{ github.ref }}
+        run: python .github/scripts/label_promoted_commits.py  --commits ${{ github.event.before }}..${{ github.sha }} --repository ${{ github.repository }} --ref ${{ github.ref }}
       - name: Run auto-backport.py when promotion completed
-        if: github.event_name == 'push'
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/env.DEFAULT_BRANCH' }}
         env:
           GITHUB_TOKEN: ${{ secrets.AUTO_BACKPORT_TOKEN }}
         run: python .github/scripts/auto-backport.py --repo ${{ github.repository }} --base-branch ${{ github.ref }} --commits ${{ github.event.before }}..${{ github.sha }}
@@ -68,4 +68,4 @@ jobs:
         if: github.event_name == 'pull_request_target' && steps.check_label.outputs.backport_label == 'true' && (github.event.pull_request.state == 'closed' && github.event.pull_request.merged == true)
         env:
           GITHUB_TOKEN: ${{ secrets.AUTO_BACKPORT_TOKEN }}
-        run: python .github/scripts/auto-backport.py --repo ${{ github.repository }} --base-branch ${{ github.ref }} --pull-request ${{ github.event.pull_request.number }} --head-commit ${{ github.sha }}
+        run: python .github/scripts/auto-backport.py --repo ${{ github.repository }} --base-branch ${{ github.ref }} --pull-request ${{ github.event.pull_request.number }} --head-commit ${{ github.event.pull_request.base.sha }}
