@@ -29,6 +29,7 @@ jobs:
           else
             echo "DEFAULT_BRANCH=master" >> $GITHUB_ENV
           fi
+          echo "pr state: ${{ github.event.pull_request.state == 'CLOSED' }}"
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -41,7 +42,6 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git config --global merge.conflictstyle diff3
-          echo "${{ env.DEFAULT_BRANCH }}"
       - name: Install dependencies
         run: sudo apt-get install -y python3-github python3-git
       - name: Run python script
@@ -49,8 +49,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.AUTO_BACKPORT_TOKEN }}
         run: python .github/scripts/search_commits.py  --commits ${{ github.event.before }}..${{ github.sha }} --repository ${{ github.repository }} --ref ${{ github.ref }}
+
       - name: Run auto-backport.py when promotion completed
-        if: github.event_name == 'push' && github.ref == 'refs/heads/${{ env.DEFAULT_BRANCH }}'
+        if: github.event_name == 'push' && (github.ref_name == 'master' || github.ref_name == 'enterprise')
         env:
           GITHUB_TOKEN: ${{ secrets.AUTO_BACKPORT_TOKEN }}
         run: python .github/scripts/auto-backport.py --repo ${{ github.repository }} --base-branch ${{ github.ref }} --commits ${{ github.event.before }}..${{ github.sha }}
@@ -66,7 +67,7 @@ jobs:
             echo "backport_label=false" >> $GITHUB_OUTPUT
           fi
       - name: Run auto-backport.py when label was added
-        if: github.event_name == 'pull_request_target' && steps.check_label.outputs.backport_label == 'true' && (github.event.pull_request.state == 'closed' && github.event.pull_request.merged == true)
+        if: github.event_name == 'pull_request_target' && steps.check_label.outputs.backport_label == 'true' && (github.event.pull_request.state == 'closed' || github.event.pull_request.state == 'merged')
         env:
           GITHUB_TOKEN: ${{ secrets.AUTO_BACKPORT_TOKEN }}
         run: python .github/scripts/auto-backport.py --repo ${{ github.repository }} --base-branch ${{ github.ref }} --pull-request ${{ github.event.pull_request.number }} --head-commit ${{ github.event.pull_request.base.sha }}
