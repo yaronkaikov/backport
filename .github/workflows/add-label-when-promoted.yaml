@@ -20,23 +20,20 @@ jobs:
       - name: Dump GitHub context
         env:
           GITHUB_CONTEXT: ${{ toJson(github) }}
-        run: |
-          echo "$GITHUB_CONTEXT"
+        run: echo "$GITHUB_CONTEXT"
       - name: Set Default Branch
         id: set_branch
         run: |
           if [[ "${{ github.repository }}" == *enterprise* ]]; then
-            export "DEFAULT_BRANCH=enterprise"
+            echo "stable_branch=enterprise" >> $GITHUB_ENV
           else
-            export "DEFAULT_BRANCH=master"
+            echo "stable_branch=master" >> $GITHUB_ENV
           fi
-          env
       - name: Checkout repository
         uses: actions/checkout@v4
-        if: github.event_name == 'push' && github.ref_name == ${{ env.DEFAULT_BRANCH }}
         with:
           repository: ${{ github.repository }}
-          ref: ${{ env.DEFAULT_BRANCH }}
+          ref: ${{ env.stable_branch }}
           token: ${{ secrets.AUTO_BACKPORT_TOKEN }}
           fetch-depth: 0  # Fetch all history for all tags and branches
       - name: Set up Git identity
@@ -51,9 +48,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.AUTO_BACKPORT_TOKEN }}
         run: python .github/scripts/search_commits.py  --commits ${{ github.event.before }}..${{ github.sha }} --repository ${{ github.repository }} --ref ${{ github.ref }}
-
       - name: Run auto-backport.py when promotion completed
-        if: ${{ github.event_name == 'push' && github.base_ref == env.DEFAULT_BRANCH }}
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/env.stable_branch' }}
         env:
           GITHUB_TOKEN: ${{ secrets.AUTO_BACKPORT_TOKEN }}
         run: python .github/scripts/auto-backport.py --repo ${{ github.repository }} --base-branch ${{ github.ref }} --commits ${{ github.event.before }}..${{ github.sha }}
