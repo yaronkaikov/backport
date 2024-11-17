@@ -29,7 +29,7 @@ jobs:
           else
             echo "DEFAULT_BRANCH=master" >> $GITHUB_ENV
           fi
-          echo "pr state: ${{ github.event.pull_request.state == 'CLOSED' }}"
+          echo "pr state: ${{ github.event.pull_request.state == 'closed' }}"
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
