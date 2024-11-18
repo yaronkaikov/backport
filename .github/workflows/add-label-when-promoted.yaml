@@ -5,10 +5,12 @@ on:
     branches:
       - master
       - branch-*.*
-      - enterprise
-    pull_request_target:
-      types: [labeled]
-      branches: [master, next, enterprise]
+  pull_request_target:
+    types: [labeled]
+    branches: [master, next]
+
+env:
+  DEFAULT_BRANCH: 'master'
 
 jobs:
   check-commit:
@@ -21,14 +23,6 @@ jobs:
         env:
           GITHUB_CONTEXT: ${{ toJson(github) }}
         run: echo "$GITHUB_CONTEXT"
-      - name: Set Default Branch
-        id: set_branch
-        run: |
-          if [[ "${{ github.repository }}" == *enterprise* ]]; then
-            echo "DEFAULT_BRANCH=enterprise" >> $GITHUB_ENV
-          else
-            echo "DEFAULT_BRANCH=master" >> $GITHUB_ENV
-          fi
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -47,9 +41,9 @@ jobs:
         if: github.event_name == 'push'
         env:
           GITHUB_TOKEN: ${{ secrets.AUTO_BACKPORT_TOKEN }}
-        run: python .github/scripts/label_promoted_commits.py  --commits ${{ github.event.before }}..${{ github.sha }} --repository ${{ github.repository }} --ref ${{ github.ref }}
+        run: python .github/scripts/search_commits.py  --commits ${{ github.event.before }}..${{ github.sha }} --repository ${{ github.repository }} --ref ${{ github.ref }}
       - name: Run auto-backport.py when promotion completed
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/env.DEFAULT_BRANCH' }}
+        if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', env.DEFAULT_BRANCH)
         env:
           GITHUB_TOKEN: ${{ secrets.AUTO_BACKPORT_TOKEN }}
         run: python .github/scripts/auto-backport.py --repo ${{ github.repository }} --base-branch ${{ github.ref }} --commits ${{ github.event.before }}..${{ github.sha }}
