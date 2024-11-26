@@ -28,9 +28,8 @@ jobs:
       - name: Extract PR Details
         id: extract-pr
         run: |
-          echo "PR_BRANCH=echo ${{ steps.pr-details.outputs.data }} | jq -r '.pull_request.head.ref'" >> $GITHUB_ENV
-          echo "TARGET_BRANCH=$(echo ${{ steps.pr-details.outputs.data }} | jq -r '.pull_request.base.ref')" >> $GITHUB_ENV
-
+          echo "${{ steps.pr-details.outputs.data }} | jq -r '.pull_request.head.ref'"
+          echo "${{ steps.pr-details.outputs.data }} | jq -r '.pull_request.base.ref')"
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
